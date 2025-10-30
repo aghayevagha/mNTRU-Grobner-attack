@@ -72,38 +72,14 @@ for idx in range(m):
             t_l *= (L - Integer(b))
         all_arora_polys.append(t_l)
 
-# Boolean constraints xi*(xi-1) = 0
+# Boolean constraints xi*(xi-1)(x_i+1) = 0
 bool_constraints = [x_vars[i] * (x_vars[i]-1) * (x_vars[i]+1) for i in range(n)]
 
-g_coeffs_modq = [int(g[i]) % q for i in range(n)]
-
-# Map modulo q coefficients back to ternary {-1,0,1}
-# Using centered representative: choose the closest in {-1,0,1}
-def modq_to_ternary(c, q):
-    # compute minimal representative in [-floor(q/2), ceil(q/2)]
-    if c > q//2:
-        c -= q
-    # clamp to {-1,0,1}
-    if c > 1:
-        return 1
-    elif c < -1:
-        return -1
-    else:
-        return c
-
-g_coeffs = [modq_to_ternary(c, q) for c in g_coeffs_modq]
-
-# Compute Hamming weight / sum-of-squares
-h = sum([c**2 for c in g_coeffs])
-
-print(f"\nAdding sum-of-squares constraint: sum(x_i^2) = {h}")
-
-# Add sum-of-squares equation
-sum_squares_eq = sum([x_vars[i]**2 for i in range(n)]) - h
-
-all_equations = all_arora_polys + bool_constraints + [sum_squares_eq]
 
 
+all_equations = all_arora_polys + bool_constraints 
+
+all_equations= all_arora_polys
 print("\nTotal equations (Arora-Ge from all h + boolean):", len(all_equations))
 print(f"  ({len(all_arora_polys)} Arora-Ge polynomials from {m} h's + {len(bool_constraints)} boolean constraints)\n")
 

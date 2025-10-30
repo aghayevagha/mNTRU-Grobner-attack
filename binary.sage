@@ -75,6 +75,7 @@ for idx in range(m):
 # Boolean constraints xi*(xi-1) = 0
 bool_constraints = [x_vars[i] * (x_vars[i] - 1) for i in range(n)]
 all_equations = all_arora_polys + bool_constraints
+# all_equations = all_arora_polys
 
 print("\nTotal equations (Arora-Ge from all h + boolean):", len(all_equations))
 print(f"  ({len(all_arora_polys)} Arora-Ge polynomials from {m} h's + {len(bool_constraints)} boolean constraints)\n")
