@@ -1,0 +1,95 @@
+n := 30;
+q := 769;
+B := 1;
+E := [0, 1];
+m := 15;
+
+F := GF(q);
+P<x> := PolynomialRing(F);
+Rq<xbar> := quo<P | x^n - 1>;
+
+function RandomSmallPoly()
+    coeffs := [Random(0, B) : i in [1..n]];
+    return &+[coeffs[i] * xbar^(i-1) : i in [1..n]];
+end function;
+
+function GenerateG()
+    while true do
+        g := RandomSmallPoly();
+        if IsUnit(g) then
+            g_inv := 1/g;
+            return g, g_inv;
+        end if;
+    end while;
+end function;
+
+print "Generating secret g...";
+g, g_inv := GenerateG();
+g_coeffs := [Integers()!Coefficient(g, i) : i in [0..n-1]];
+print "g coefficients:", g_coeffs;
+
+Rpoly := PolynomialRing(F, n);
+x_vars := [Rpoly.i : i in [1..n]];
+
+arora_polys := [];
+for idx in [1..m] do
+    f_i := RandomSmallPoly();
+    h_i := f_i * g_inv;
+    h_coeffs := [Integers()!Coefficient(h_i, i) : i in [0..n-1]];
+    
+    for l in [0..n-1] do
+        L := Rpoly!0;
+        for j in [0..n-1] do
+            k := (l - j) mod n;
+            L +:= h_coeffs[j+1] * x_vars[k+1];
+        end for;
+        t_l := Rpoly!1;
+        for b in E do
+            t_l *:= (L - b);
+        end for;
+        Append(~arora_polys, t_l);
+    end for;
+end for;
+
+bool_constraints := [x_vars[i] * (x_vars[i] - 1) : i in [1..n]];
+
+print "Total Arora-Ge polynomials:", #arora_polys;
+print "Boolean constraints:", #bool_constraints;
+
+print "\n========== WITHOUT BOOLEAN CONSTRAINTS ==========";
+I1 := ideal<Rpoly | arora_polys>;
+print "Total equations:", #arora_polys;
+t0 := Cputime();
+G1 := GroebnerBasis(I1);
+gb_time := Cputime(t0);
+print "Groebner computed in", gb_time, "sec";
+print "GB size:", #G1;
+if #G1 gt 0 then
+    print "Max degree:", Maximum([TotalDegree(g) : g in G1]);
+end if;
+t1 := Cputime();
+V1 := Variety(I1);
+print "Variety computed in", Cputime(t1), "sec";
+print "Solutions:", #V1;
+
+print "\n========== WITH BOOLEAN CONSTRAINTS ==========";
+I2 := ideal<Rpoly | arora_polys cat bool_constraints>;
+print "Total equations:", #arora_polys + #bool_constraints;
+t0 := Cputime();
+G2 := GroebnerBasis(I2);
+gb_time := Cputime(t0);
+print "Groebner computed in", gb_time, "sec";
+print "GB size:", #G2;
+if #G2 gt 0 then
+    print "Max degree:", Maximum([TotalDegree(g) : g in G2]);
+end if;
+t1 := Cputime();
+V2 := Variety(I2);
+print "Variety computed in", Cputime(t1), "sec";
+print "Solutions:", #V2;
+
+for i in [1..Minimum(6, #V2)] do
+    sol := V2[i];
+    sol_coeffs := [Integers()!sol[j] : j in [1..n]];
+    print "  Solution", i, ":", sol_coeffs;
+end for;
