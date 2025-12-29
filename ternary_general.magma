@@ -1,0 +1,108 @@
+n := 10;
+q := 769;
+B := 1;  // Can change this to 2, 3, etc.
+m := 15;
+
+// Generate E = [-B, -B+1, ..., B-1, B]
+E := [-B..B];
+print "E set:", E;
+
+F := GF(q);
+P<x> := PolynomialRing(F);
+Rq<xbar> := quo<P | x^n - 1>;
+
+function RandomSmallPoly(bound)
+    coeffs := [Random(-bound, bound) : i in [1..n]];
+    return &+[coeffs[i] * xbar^(i-1) : i in [1..n]];
+end function;
+
+function GenerateG(bound)
+    while true do
+        g := RandomSmallPoly(bound);
+        if IsUnit(g) then
+            g_inv := 1/g;
+            return g, g_inv;
+        end if;
+    end while;
+end function;
+
+print "Generating secret g...";
+g, g_inv := GenerateG(B);
+g_coeffs := [Integers()!Coefficient(g, i) : i in [0..n-1]];
+print "g coefficients:", g_coeffs;
+
+Rpoly := PolynomialRing(F, n);
+x_vars := [Rpoly.i : i in [1..n]];
+
+arora_polys := [];
+for idx in [1..m] do
+    f_i := RandomSmallPoly(B);
+    h_i := f_i * g_inv;
+    h_coeffs := [Integers()!Coefficient(h_i, i) : i in [0..n-1]];
+    
+    for l in [0..n-1] do
+        L := Rpoly!0;
+        for j in [0..n-1] do
+            k := (l - j) mod n;
+            L +:= h_coeffs[j+1] * x_vars[k+1];
+        end for;
+        
+        // Build product (L + B)(L + B-1)...(L - B+1)(L - B)
+        t_l := Rpoly!1;
+        for b in E do
+            t_l *:= (L - b);
+        end for;
+        Append(~arora_polys, t_l);
+    end for;
+end for;
+
+// Corrected boolean constraints: (x_i + B)(x_i + B-1)...(x_i - B+1)(x_i - B)
+bool_constraints := [];
+for i in [1..n] do
+    constraint := Rpoly!1;
+    for b in E do
+        constraint *:= (x_vars[i] - b);
+    end for;
+    Append(~bool_constraints, constraint);
+end for;
+
+print "Total Arora-Ge polynomials:", #arora_polys;
+print "Boolean constraints:", #bool_constraints;
+
+print "\n========== WITHOUT BOOLEAN CONSTRAINTS ==========";
+I1 := ideal<Rpoly | arora_polys>;
+print "Total equations:", #arora_polys;
+t0 := Cputime();
+G1 := GroebnerBasis(I1);
+gb_time := Cputime(t0);
+print "Groebner computed in", gb_time, "sec";
+print "GB size:", #G1;
+if #G1 gt 0 then
+    print "Max degree:", Maximum([TotalDegree(g) : g in G1]);
+end if;
+t1 := Cputime();
+V1 := Variety(I1);
+print "Variety computed in", Cputime(t1), "sec";
+print "Solutions:", #V1;
+
+print "\n========== WITH BOOLEAN CONSTRAINTS ==========";
+I2 := ideal<Rpoly | arora_polys cat bool_constraints>;
+print "Total equations:", #arora_polys + #bool_constraints;
+t0 := Cputime();
+G2 := GroebnerBasis(I2);
+gb_time := Cputime(t0);
+print "Groebner computed in", gb_time, "sec";
+print "GB size:", #G2;
+if #G2 gt 0 then
+    print "Max degree:", Maximum([TotalDegree(g) : g in G2]);
+end if;
+t1 := Cputime();
+V2 := Variety(I2);
+print "Variety computed in", Cputime(t1), "sec";
+print "Solutions:", #V2;
+print "Sample solutions (up to 6):";
+for i in [1..Minimum(6, #V2)] do
+    sol := V2[i];
+    sol_coeffs := [Integers()!sol[j] : j in [1..n]];
+    print "  Solution", i, ":", sol_coeffs;
+end for;
